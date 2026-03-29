@@ -1,0 +1,421 @@
+import React, { useState, useRef } from 'react';
+import { Edit2, MapPin, Clock, Trash2, GripVertical, ChevronUp, ChevronDown, Plus, Lightbulb } from 'lucide-react';
+
+// --- 米飛兔風格自製 SVG 元件 ---
+const MiffyHead = ({ className }) => (
+  <svg viewBox="0 0 100 120" className={className} xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#000" strokeWidth="6" fill="#fff" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M 30 60 C 25 5, 45 5, 45 60" />
+      <path d="M 70 60 C 75 5, 55 5, 55 60" />
+      <ellipse cx="50" cy="75" rx="35" ry="30" />
+    </g>
+    <g fill="#000">
+      <circle cx="38" cy="70" r="3.5" />
+      <circle cx="62" cy="70" r="3.5" />
+    </g>
+    <g stroke="#000" strokeWidth="3.5" strokeLinecap="round">
+      <line x1="46" y1="80" x2="54" y2="88" />
+      <line x1="54" y1="80" x2="46" y2="88" />
+      <line x1="43" y1="84" x2="57" y2="84" />
+    </g>
+  </svg>
+);
+
+// --- 初始資料 (從 markdown 轉換) ---
+const initialItinerary = [
+  {
+    id: 'day1',
+    date: '5月22日 (五)',
+    title: '抵達岡山，旅程啟航',
+    themeColor: 'bg-[#ff4f00]', // Miffy Orange
+    events: [
+      { id: 'e1-1', time: '16:45', title: '抵達岡山機場', location: '岡山桃太郎空港', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E5%B2%A1%E5%B1%B1%E6%A1%83%E5%A4%AA%E9%83%8E%E7%A9%BA%E6%B8%AF', note: '交通：辦理入境手續後，搭乘機場接駁巴士前往岡山市區。' },
+      { id: 'e1-2', time: '18:00', title: '抵達岡山市區飯店 Check-in', location: '岡山市區飯店', mapUrl: '', note: '建議安排於岡山車站附近以利隔日租車' },
+      { id: 'e1-3', time: '19:00', title: '岡山市區晚餐', location: '岡山車站周邊', mapUrl: '', note: '建議：可於岡山車站周邊享用美味的日本拉麵。' },
+    ]
+  },
+  {
+    id: 'day2',
+    date: '5月23日 (六)',
+    title: '柯南推理與兒童放電樂園',
+    themeColor: 'bg-[#0038a8]', // Miffy Blue
+    events: [
+      { id: 'e2-1', time: '09:00', title: '市區租車出發', location: '岡山市區', mapUrl: '', note: '前往鳥取方向' },
+      { id: 'e2-2', time: '11:30', title: '青山剛昌故鄉館 & 米花商店街', location: '青山剛昌ふるさと館', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E9%9D%92%E5%B1%B1%E5%89%9B%E6%98%8C%E3%81%B5%E3%82%8B%E3%81%95%E3%81%A8%E9%A4%A8', note: '午餐：Conan\'s Kitchen (柯南廚房)' },
+      { id: 'e2-3', time: '15:30', title: '鳥取砂丘兒童王國 (穿山鼠公園)', location: '鳥取砂丘こどもの国', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E9%B3%A5%E5%8F%96%E7%A0%82%E4%B8%98%E3%81%93%E3%81%A9%E3%82%82%E3%81%AE%E5%9B%BD', note: '特色：超適合家庭放電的大型公園遊樂區。' },
+      { id: 'e2-4', time: '18:30', title: 'AEON Mall 鳥取北店', location: 'イオンモール鳥取北', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E3%82%A4%E3%82%AA%E3%83%B3%E3%83%A2%E3%83%BC%E3%83%AB%E9%B3%A5%E5%8F%96%E5%8C%97', note: '大型超市採購' },
+    ]
+  },
+  {
+    id: 'day3',
+    date: '5月24日 (日)',
+    title: '砂丘絕景與白壁土藏群慢步',
+    themeColor: 'bg-[#ffdf00]', // Miffy Yellow
+    events: [
+      { id: 'e3-1', time: '08:30', title: '清晨鳥取砂丘漫步', location: '鳥取砂丘', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E9%B3%A5%E5%8F%96%E7%A0%82%E4%B8%98', note: '' },
+      { id: 'e3-2', time: '10:00', title: '白兔神社', location: '白兎神社', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E7%99%BD%E5%85%8E%E7%A5%9E%E7%A4%BE', note: '領取結緣御守' },
+      { id: 'e3-3', time: '11:30', title: '午餐：町屋清水庵', location: '町屋 清水庵', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E7%94%BA%E5%B1%8B%E6%B8%85%E6%B0%B4%E5%BA%B5', note: '十二色麻糬涮涮鍋' },
+      { id: 'e3-4', time: '13:00', title: '二十世紀梨紀念館', location: 'なしっこ館', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E9%B3%A5%E5%8F%96%E4%BA%8C%E5%8D%81%E4%B8%96%E7%B4%80%E6%A2%A8%E8%A8%98%E5%BF%B5%E9%A4%A8', note: '含試吃體驗' },
+      { id: 'e3-5', time: '15:00', title: '倉吉白壁土藏群深度慢走', location: '倉吉白壁土蔵群', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E5%80%89%E5%90%89%E7%99%BD%E5%A3%81%E5%9C%9F%E8%94%B5%E7%BE%A4', note: '點心：米澤たいやき店 (米澤鯛魚燒)' },
+    ]
+  },
+  {
+    id: 'day4',
+    date: '5月25日 (一)',
+    title: '花鳥世界與在地生活體驗',
+    themeColor: 'bg-[#00a859]', // Miffy Green
+    events: [
+      { id: 'e4-1', time: '10:30', title: '松江花鳥園', location: '松江フォーゲルパーク', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E6%9D%BE%E6%B1%9F%E3%83%95%E3%82%A9%E3%83%BC%E3%82%B2%E3%83%AB%E3%83%91%E3%83%BC%E3%82%AF', note: '企鵝散步' },
+      { id: 'e4-2', time: '13:00', title: '午餐：味処 美佐', location: '味処 美佐', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E5%A2%83%E6%B8%AF%2B%E5%91%B3%E5%87%A6%E7%BE%8E%E4%BD%90', note: '紅楚蟹饗宴' },
+      { id: 'e4-3', time: '14:30', title: 'PLANT-5 境港店', location: 'SUPER CENTER PLANT-5', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3DPLANT-5%2B%E5%A2%83%E6%B8%AF%E5%BA%97', note: '生活量販店研究與採買' },
+      { id: 'e4-4', time: '17:00', title: '晚餐：PLANT-5 熟食區', location: 'PLANT-5 境港店', mapUrl: '', note: '體驗在地超市高CP值熟食便當' },
+    ]
+  },
+  {
+    id: 'day5',
+    date: '5月26日 (二)',
+    title: '神話國度與倉敷浪漫夕陽',
+    themeColor: 'bg-[#ff4f00]', 
+    events: [
+      { id: 'e5-1', time: '08:30', title: '驅車前往島根縣', location: '島根縣', mapUrl: '', note: '' },
+      { id: 'e5-2', time: '11:00', title: '出雲大社參拜', location: '出雲大社', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E5%87%BA%E9%9B%B2%E5%A4%A7%E7%A4%BE', note: '最強結緣聖地' },
+      { id: 'e5-3', time: '12:30', title: '午餐：そば処 田中屋', location: 'そば処 田中屋', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E3%81%9D%E3%81%B0%E5%87%A6%2B%E7%94%B0%E4%B8%AD%E5%B1%8B%2B%E5%87%BA%E9%9B%B2', note: '出雲蕎麥麵' },
+      { id: 'e5-4', time: '14:30', title: '稻佐之濱', location: '稲佐の浜', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E7%A8%B2%E4%BD%90%E3%81%AE%E6%B5%9C', note: '踩水踏浪、神話海岸' },
+      { id: 'e5-5', time: '18:00', title: '倉敷美觀地區散步', location: '倉敷美観地区', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E5%80%89%E6%95%B7%E7%BE%8E%E8%A6%B3%E5%9C%B0%E5%8C%BA', note: '賞夕陽/夜景' },
+    ]
+  },
+  {
+    id: 'day6',
+    date: '5月27日 (三)',
+    title: '倉敷晨間漫步與 Miffy 雜貨',
+    themeColor: 'bg-[#0038a8]',
+    events: [
+      { id: 'e6-1', time: '09:00', title: '倉敷美觀地區 清晨漫步', location: '倉敷美観地区', mapUrl: '', note: '早晨遊客較少，非常適合拍攝柳樹與白壁建築倒影。' },
+      { id: 'e6-2', time: '10:00', title: 'Miffy 藏之廚房', location: 'みっふぃー蔵のきっちん 倉敷店', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E3%81%BF%E3%81%A3%E3%81%B5%E3%81%83%E3%83%BC%E8%94%B5%E3%81%AE%E3%81%8D%E3%81%A3%E3%81%A1%E3%82%93%2B%E5%80%89%E6%95%B7%E5%BA%97', note: '限定雜貨與麵包 (重點行程！)' },
+      { id: 'e6-3', time: '12:00', title: '抵達機場辦理登機', location: '岡山桃太郎空港', mapUrl: 'https://www.google.com/search?q=https://www.google.com/maps/search/%3Fapi%3D1%26query%3D%E5%B2%A1%E5%B1%B1%E6%A1%83%E5%A4%AA%E9%83%8E%E7%A9%BA%E6%B8%AF', note: '還車與報到' },
+      { id: 'e6-4', time: '14:00', title: '搭乘虎航 (IT263) 返回高雄', location: '飛往高雄', mapUrl: '', note: '滿載而歸' },
+    ]
+  }
+];
+
+// --- 周邊推薦資料 ---
+const recommendationsMap = {
+  'day1': [
+    { name: '岡山後樂園', url: 'https://www.google.com/maps/search/?api=1&query=岡山後楽園' },
+    { name: '岡山城', url: 'https://www.google.com/maps/search/?api=1&query=岡山城' }
+  ],
+  'day2': [
+    { name: '砂之美術館', url: 'https://www.google.com/maps/search/?api=1&query=砂の美術館' },
+    { name: '白兔海岸', url: 'https://www.google.com/maps/search/?api=1&query=白兎海岸' }
+  ],
+  'day3': [
+    { name: '打吹公園 (櫻花名所)', url: 'https://www.google.com/maps/search/?api=1&query=打吹公園' },
+    { name: '舊國鐵倉吉線廢線跡', url: 'https://www.google.com/maps/search/?api=1&query=旧国鉄倉吉線廃線跡' }
+  ],
+  'day4': [
+    { name: '水木茂大道 (鬼太郎街)', url: 'https://www.google.com/maps/search/?api=1&query=水木しげるロード' },
+    { name: '江島大橋 (汽水瓶橋)', url: 'https://www.google.com/maps/search/?api=1&query=江島大橋' }
+  ],
+  'day5': [
+    { name: '島根縣立美術館 (賞夕陽)', url: 'https://www.google.com/maps/search/?api=1&query=島根県立美術館' },
+    { name: '玉造溫泉', url: 'https://www.google.com/maps/search/?api=1&query=玉造温泉' }
+  ],
+  'day6': [
+    { name: '阿智神社', url: 'https://www.google.com/maps/search/?api=1&query=阿智神社' },
+    { name: '大原美術館', url: 'https://www.google.com/maps/search/?api=1&query=大原美術館' }
+  ]
+};
+
+export default function App() {
+  const [itinerary, setItinerary] = useState(initialItinerary);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [openRecommendations, setOpenRecommendations] = useState({});
+  const dragItem = useRef();
+  const dragOverItem = useRef();
+
+  // 處理拖曳開始
+  const handleDragStart = (e, dayIndex, eventIndex) => {
+    dragItem.current = { dayIndex, eventIndex };
+    e.target.style.opacity = '0.5';
+  };
+
+  // 處理拖曳進入
+  const handleDragEnter = (e, dayIndex, eventIndex) => {
+    dragOverItem.current = { dayIndex, eventIndex };
+  };
+
+  // 處理拖曳結束與重排
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    if (!dragOverItem.current) return;
+
+    const sourceDay = dragItem.current.dayIndex;
+    const sourceEvent = dragItem.current.eventIndex;
+    const targetDay = dragOverItem.current.dayIndex;
+    const targetEvent = dragOverItem.current.eventIndex;
+
+    const newItinerary = [...itinerary];
+    const draggedEventContent = newItinerary[sourceDay].events.splice(sourceEvent, 1)[0];
+    newItinerary[targetDay].events.splice(targetEvent, 0, draggedEventContent);
+
+    dragItem.current = null;
+    dragOverItem.current = null;
+    setItinerary(newItinerary);
+  };
+
+  // 點擊按鈕上下移動
+  const moveEvent = (dayIndex, eventIndex, direction) => {
+    const newItinerary = [...itinerary];
+    const events = newItinerary[dayIndex].events;
+    if (direction === 'up' && eventIndex > 0) {
+      const temp = events[eventIndex];
+      events[eventIndex] = events[eventIndex - 1];
+      events[eventIndex - 1] = temp;
+    } else if (direction === 'down' && eventIndex < events.length - 1) {
+      const temp = events[eventIndex];
+      events[eventIndex] = events[eventIndex + 1];
+      events[eventIndex + 1] = temp;
+    }
+    setItinerary(newItinerary);
+  };
+
+  // 刪除行程
+  const deleteEvent = (dayIndex, eventId) => {
+    if(window.confirm("確定要刪除這個行程嗎？")) {
+        const newItinerary = [...itinerary];
+        newItinerary[dayIndex].events = newItinerary[dayIndex].events.filter(e => e.id !== eventId);
+        setItinerary(newItinerary);
+    }
+  };
+
+  // 儲存編輯
+  const saveEvent = (e) => {
+    e.preventDefault();
+    const newItinerary = [...itinerary];
+    const dayIndex = editingEvent.dayIndex;
+    
+    if (editingEvent.isNew) {
+      newItinerary[dayIndex].events.push({
+        ...editingEvent.data,
+        id: `e${Date.now()}`
+      });
+    } else {
+      const eventIndex = newItinerary[dayIndex].events.findIndex(ev => ev.id === editingEvent.data.id);
+      newItinerary[dayIndex].events[eventIndex] = editingEvent.data;
+    }
+    
+    setItinerary(newItinerary);
+    setEditingEvent(null);
+  };
+
+  // 切換推薦景點顯示
+  const toggleRec = (dayId) => {
+    setOpenRecommendations(prev => ({...prev, [dayId]: !prev[dayId]}));
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fef7f0] font-sans pb-20 selection:bg-[#ff4f00] selection:text-white">
+      {/* Miffy 繪本風格標題列 */}
+      <header className="bg-white border-b-8 border-black p-6 sticky top-0 z-40 shadow-sm flex items-center justify-center space-x-4">
+        <MiffyHead className="w-16 h-16 drop-shadow-md" />
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-black tracking-widest uppercase">岡山鳥取島根</h1>
+          <h2 className="text-lg md:text-xl font-bold text-[#ff4f00] tracking-wider mt-1">六日家庭慢旅手冊</h2>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto p-4 md:p-6 space-y-10 mt-6">
+        {itinerary.map((day, dayIndex) => (
+          <section key={day.id} className="relative bg-white rounded-3xl border-4 border-black p-5 md:p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            
+            {/* 繪本風 Day 標題 */}
+            <div className={`absolute -top-6 left-6 md:left-8 ${day.themeColor} text-white border-4 border-black rounded-full px-6 py-2 font-black text-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2`}>
+              {day.date}
+            </div>
+            
+            <h3 className="text-xl md:text-2xl font-black mt-4 mb-6 text-black border-b-4 border-black pb-2 inline-block">
+              {day.title}
+            </h3>
+
+            <div className="space-y-4">
+              {day.events.map((event, eventIndex) => (
+                <div 
+                  key={event.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, dayIndex, eventIndex)}
+                  onDragEnter={(e) => handleDragEnter(e, dayIndex, eventIndex)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => e.preventDefault()}
+                  className="group relative bg-[#fffdfa] border-4 border-black rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start hover:bg-[#fff5e6] transition-colors cursor-move"
+                >
+                  {/* 時間與拖曳標記 */}
+                  <div className="flex items-center gap-2 min-w-[100px] shrink-0 font-bold text-xl text-black">
+                    <GripVertical className="text-gray-300 md:opacity-0 group-hover:opacity-100 transition-opacity" size={20} />
+                    <Clock size={20} className="text-[#0038a8]" strokeWidth={3} />
+                    <span>{event.time}</span>
+                  </div>
+
+                  {/* 內容區塊 */}
+                  <div className="flex-grow">
+                    <h4 className="text-lg font-bold text-black">{event.title}</h4>
+                    
+                    {event.location && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <MapPin size={16} className="text-[#ff4f00]" strokeWidth={3} />
+                        {event.mapUrl ? (
+                          <a href={event.mapUrl} target="_blank" rel="noopener noreferrer" className="text-[#0038a8] font-bold hover:underline decoration-4 underline-offset-4">
+                            {event.location}
+                          </a>
+                        ) : (
+                          <span className="font-bold text-gray-700">{event.location}</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {event.note && (
+                      <p className="mt-2 text-sm font-semibold bg-gray-100 p-2 rounded-xl border-2 border-dashed border-gray-400 inline-block text-gray-700">
+                        {event.note}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 操作按鈕 */}
+                  <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto justify-end mt-2 md:mt-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => moveEvent(dayIndex, eventIndex, 'up')} className="p-2 bg-gray-100 rounded-full border-2 border-black hover:bg-[#ffdf00]">
+                      <ChevronUp size={16} strokeWidth={3} />
+                    </button>
+                    <button onClick={() => moveEvent(dayIndex, eventIndex, 'down')} className="p-2 bg-gray-100 rounded-full border-2 border-black hover:bg-[#ffdf00]">
+                      <ChevronDown size={16} strokeWidth={3} />
+                    </button>
+                    <button onClick={() => setEditingEvent({ dayIndex, data: { ...event }, isNew: false })} className="p-2 bg-gray-100 rounded-full border-2 border-black hover:bg-[#0038a8] hover:text-white">
+                      <Edit2 size={16} strokeWidth={3} />
+                    </button>
+                    <button onClick={() => deleteEvent(dayIndex, event.id)} className="p-2 bg-gray-100 rounded-full border-2 border-black hover:bg-[#ff4f00] hover:text-white">
+                      <Trash2 size={16} strokeWidth={3} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              {/* 新增按鈕 */}
+              <button 
+                onClick={() => setEditingEvent({ 
+                  dayIndex, 
+                  data: { id: '', time: '12:00', title: '新增行程', location: '', mapUrl: '', note: '' }, 
+                  isNew: true 
+                })}
+                className="w-full py-3 border-4 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex justify-center items-center gap-2 hover:border-black hover:text-black hover:bg-gray-50 transition-all"
+              >
+                <Plus size={20} strokeWidth={3} /> 點擊新增行程
+              </button>
+            </div>
+
+            {/* 周邊推薦區塊 */}
+            <div className="mt-8">
+              <button 
+                onClick={() => toggleRec(day.id)}
+                className={`w-full py-3 px-4 rounded-2xl border-4 border-black font-bold flex justify-center items-center gap-2 transition-colors ${openRecommendations[day.id] ? 'bg-[#ffdf00] text-black' : 'bg-[#f0f0f0] text-gray-700 hover:bg-[#ffdf00]'}`}
+              >
+                <Lightbulb size={20} strokeWidth={3} /> {openRecommendations[day.id] ? '收起推薦周邊景點' : '💡 點我查看推薦周邊景點'}
+              </button>
+              
+              {openRecommendations[day.id] && recommendationsMap[day.id] && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4">
+                  {recommendationsMap[day.id].map((rec, idx) => (
+                    <a 
+                      key={idx} 
+                      href={rec.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-white border-4 border-black rounded-2xl p-4 flex items-center justify-between hover:-translate-y-1 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    >
+                      <span className="font-bold text-lg">{rec.name}</span>
+                      <MapPin className="text-[#ff4f00]" size={24} strokeWidth={2.5} />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+          </section>
+        ))}
+      </main>
+
+      {/* 編輯/新增 行程彈跳視窗 (Modal) */}
+      {editingEvent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border-4 border-black rounded-3xl w-full max-w-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-[#ff4f00] p-4 border-b-4 border-black flex justify-between items-center">
+              <h3 className="font-black text-white text-xl flex items-center gap-2">
+                <Edit2 size={24} strokeWidth={3}/> {editingEvent.isNew ? '新增行程' : '編輯行程'}
+              </h3>
+              <button onClick={() => setEditingEvent(null)} className="text-white hover:scale-110 font-black text-2xl">×</button>
+            </div>
+            
+            <form onSubmit={saveEvent} className="p-6 space-y-4">
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">時間</label>
+                <input 
+                  type="time" 
+                  required
+                  value={editingEvent.data.time}
+                  onChange={(e) => setEditingEvent({...editingEvent, data: {...editingEvent.data, time: e.target.value}})}
+                  className="w-full border-4 border-black rounded-xl p-2 font-bold focus:outline-none focus:ring-4 focus:ring-[#ffdf00]"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">行程標題</label>
+                <input 
+                  type="text" 
+                  required
+                  value={editingEvent.data.title}
+                  onChange={(e) => setEditingEvent({...editingEvent, data: {...editingEvent.data, title: e.target.value}})}
+                  className="w-full border-4 border-black rounded-xl p-2 font-bold focus:outline-none focus:ring-4 focus:ring-[#ffdf00]"
+                  placeholder="例如：抵達機場"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">地點名稱</label>
+                <input 
+                  type="text" 
+                  value={editingEvent.data.location}
+                  onChange={(e) => setEditingEvent({...editingEvent, data: {...editingEvent.data, location: e.target.value}})}
+                  className="w-full border-4 border-black rounded-xl p-2 font-bold focus:outline-none focus:ring-4 focus:ring-[#ffdf00]"
+                  placeholder="例如：岡山桃太郎空港"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Google地圖連結</label>
+                <input 
+                  type="url" 
+                  value={editingEvent.data.mapUrl}
+                  onChange={(e) => setEditingEvent({...editingEvent, data: {...editingEvent.data, mapUrl: e.target.value}})}
+                  className="w-full border-4 border-black rounded-xl p-2 font-bold focus:outline-none focus:ring-4 focus:ring-[#ffdf00]"
+                  placeholder="貼上 Google Maps 網址"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">備註/提醒</label>
+                <textarea 
+                  value={editingEvent.data.note}
+                  onChange={(e) => setEditingEvent({...editingEvent, data: {...editingEvent.data, note: e.target.value}})}
+                  className="w-full border-4 border-black rounded-xl p-2 font-bold focus:outline-none focus:ring-4 focus:ring-[#ffdf00] h-24 resize-none"
+                  placeholder="例如：記得買限定伴手禮！"
+                />
+              </div>
+              
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setEditingEvent(null)} className="flex-1 border-4 border-black rounded-xl py-3 font-black text-gray-700 hover:bg-gray-100">
+                  取消
+                </button>
+                <button type="submit" className="flex-1 bg-[#0038a8] text-white border-4 border-black rounded-xl py-3 font-black hover:bg-[#002b80]">
+                  儲存行程
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
